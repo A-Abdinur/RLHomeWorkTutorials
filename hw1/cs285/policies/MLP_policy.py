@@ -84,7 +84,7 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
         action_distribution = self.forward(observation_tensor)
         return action_distribution.sample().cpu().detach().numpy()
         # TODO return the action that the policy prescribes
-        raise NotImplementedError
+        # raise NotImplementedError
 
     # update/train this policy
     def update(self, observations, actions, **kwargs):
