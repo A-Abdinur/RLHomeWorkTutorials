@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+ notes:
+  build:
+   context: .
+  command: sh -c "pip install -e ."
+  ports:
+   - 8000:8000
+   - 9229:9229
+  working_dir: /src/
+  environment:
+   - SERVER_PORT=8000
+  volumes:
+   - ./:/home/aabdinur/projects/homework_fall2020-main
+   - ./:/home/aabdinur/home/aabdinur/.mujoco/mujoco210/bin
+   
