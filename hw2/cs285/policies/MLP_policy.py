@@ -10,7 +10,7 @@ from torch import distributions
 
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.policies.base_policy import BasePolicy
-
+from cs285.infrastructure.utils import normalize
 
 class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
 
@@ -118,6 +118,7 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
                 batch_mean,
                 scale_tril=batch_scale_tril,
             )
+            
             return action_distribution
 
 #####################################################
@@ -141,21 +142,43 @@ class MLPPolicyPG(MLPPolicy):
         # HINT2: you will want to use the `log_prob` method on the distribution returned
             # by the `forward` method
 
-        TODO
+        actions_distribution = self.forward(observations)
+        log_probs: torch.Tensor = actions_distribution.log_prob(actions)
+        # print(log_probs)
+        # print(log_prob.size())
+        # print(advantages.size())
+        # if not self.discrete:
+        #     log_probs = log_probs.sum(0)
+    
+        # assert log_probs.size() == advantages.size()
+        # loss = -(log_probs * advantages).sum()
+        loss = torch.neg(torch.mean(torch.mul(log_probs, advantages)))
 
-        if self.nn_baseline:
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        train_log = {
+            'Training Loss': ptu.to_numpy(loss),
+        }
+        if self.nn_baseline and q_values is not None:
+            targets = normalize(q_values, q_values.mean(), q_values.std())
+            targets = ptu.from_numpy(targets)
             ## TODO: update the neural network baseline using the q_values as
             ## targets. The q_values should first be normalized to have a mean
             ## of zero and a standard deviation of one.
 
             ## Note: You will need to convert the targets into a tensor using
                 ## ptu.from_numpy before using it in the loss
+            baseline_predictions: torch.Tensor = self.baseline(observations).squeeze()
+            assert baseline_predictions.shape == targets.shape
 
-            TODO
+            baseline_loss = F.mse_loss(baseline_predictions, targets)
+            self.baseline_optimizer.zero_grad()
+            baseline_loss.backward()
+            self.baseline_optimizer.step()
+            train_log['Baseline Loss'] = ptu.to_numpy(baseline_loss)
 
-        train_log = {
-            'Training Loss': ptu.to_numpy(loss),
-        }
         return train_log
 
     def run_baseline_prediction(self, observations):

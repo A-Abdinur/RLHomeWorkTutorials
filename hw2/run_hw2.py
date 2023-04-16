@@ -63,7 +63,7 @@ def main():
     parser.add_argument('--reward_to_go', '-rtg', action='store_true')
     parser.add_argument('--nn_baseline', action='store_true')
     parser.add_argument('--gae_lambda', type=float, default=None)
-    parser.add_argument('--dont_standardize_advantages', '-dsa', action='store_true')
+    parser.add_argument('--dont_standardize_advantages', '-dsa', action='store_false')
     parser.add_argument('--batch_size', '-b', type=int, default=1000) #steps collected per train iteration
     parser.add_argument('--eval_batch_size', '-eb', type=int, default=400) #steps collected per eval iteration
     parser.add_argument('--train_batch_size', '-tb', type=int, default=1000) ##steps used per gradient step

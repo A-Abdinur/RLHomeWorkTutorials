@@ -1,8 +1,12 @@
 import numpy as np
+import functools
 
 from .base_agent import BaseAgent
 from cs285.policies.MLP_policy import MLPPolicyPG
 from cs285.infrastructure.replay_buffer import ReplayBuffer
+from itertools import accumulate
+
+from cs285.infrastructure.utils import normalize
 
 
 class PGAgent(BaseAgent):
@@ -43,6 +47,11 @@ class PGAgent(BaseAgent):
         # using helper functions to compute qvals and advantages, and
         # return the train_log obtained from updating the policy
 
+        q_values = self.calculate_q_vals(rewards_list)
+        advantages = self.estimate_advantage(observations, [],q_values, [])
+
+        train_log = self.actor.update(observations, actions, advantages, q_values)
+
         return train_log
 
     def calculate_q_vals(self, rewards_list):
@@ -69,12 +78,11 @@ class PGAgent(BaseAgent):
         # then flattened to a 1D numpy array.
 
         if not self.reward_to_go:
-            TODO
-
+            q_values = np.concatenate([self._discounted_return(r) for r in rewards_list])
         # Case 2: reward-to-go PG
         # Estimate Q^{pi}(s_t, a_t) by the discounted sum of rewards starting from t
         else:
-            TODO
+            q_values = np.concatenate([self._discounted_cumsum(r) for r in rewards_list])
 
         return q_values
 
@@ -94,7 +102,9 @@ class PGAgent(BaseAgent):
             ## TODO: values were trained with standardized q_values, so ensure
                 ## that the predictions have the same mean and standard deviation as
                 ## the current batch of q_values
-            values = TODO
+            baselines = values_unnormalized * np.std(q_values) + np.mean(q_values)
+            advantages = q_values - baselines
+
 
             if self.gae_lambda is not None:
                 ## append a dummy T+1 value for simpler recursive calculation
@@ -114,13 +124,13 @@ class PGAgent(BaseAgent):
                     ## HINT: use terminals to handle edge cases. terminals[i]
                         ## is 1 if the state is the last in its trajectory, and
                         ## 0 otherwise.
-
+                    print(batch_size)
                 # remove dummy advantage
                 advantages = advantages[:-1]
 
             else:
                 ## TODO: compute advantage estimates using q_values, and values as baselines
-                advantages = TODO
+                print(advantages)
 
         # Else, just set the advantage to [Q]
         else:
@@ -129,7 +139,7 @@ class PGAgent(BaseAgent):
         # Normalize the resulting advantages to have a mean of zero
         # and a standard deviation of one
         if self.standardize_advantages:
-            advantages = TODO
+            advantages = normalize(q_values, np.mean(q_values), np.std(q_values))
 
         return advantages
 
@@ -148,14 +158,17 @@ class PGAgent(BaseAgent):
 
     def _discounted_return(self, rewards):
         """
-            Helper function
-
-            Input: list of rewards {r_0, r_1, ..., r_t', ... r_T} from a single rollout of length T
-
-            Output: list where each index t contains sum_{t'=0}^T gamma^t' r_{t'}
+        Helper function
+        Input: list of rewards {r_0, r_1, ..., r_t', ... r_T} from a single
+        rollout of length T
+        Output: list where each index t contains sum_{t'=0}^T gamma^t' r_{t'}
         """
 
-        return list_of_discounted_returns
+        discounted_return = functools.reduce(
+            lambda ret, reward: ret * self.gamma + reward,
+            reversed(rewards),
+        )
+        return [discounted_return] * len(rewards)
 
     def _discounted_cumsum(self, rewards):
         """
@@ -163,5 +176,8 @@ class PGAgent(BaseAgent):
             -takes a list of rewards {r_0, r_1, ..., r_t', ... r_T},
             -and returns a list where the entry in each index t' is sum_{t'=t}^T gamma^(t'-t) * r_{t'}
         """
-
-        return list_of_discounted_cumsums
+        cumsum = list(accumulate(
+            reversed(rewards),
+            lambda ret, reward: ret * self.gamma + reward,
+        ))
+        return cumsum[::-1]

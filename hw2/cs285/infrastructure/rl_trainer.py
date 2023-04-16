@@ -123,6 +123,7 @@ class RL_Trainer(object):
                 self.logvideo = True
             else:
                 self.logvideo = False
+            self.log_video = self.logvideo
 
             # decide if metrics should be logged
             if self.params['scalar_log_freq'] == -1:
@@ -176,19 +177,21 @@ class RL_Trainer(object):
 
                 # (2) collect `self.params['batch_size']` transitions
 
-        if itr == 0:
+        if itr == 0 and load_initial_expertdata is not None:
             with open(load_initial_expertdata, 'rb') as paths_file:
                 loaded_paths = pickle.load(paths_file)
             paths, envsteps_this_batch = loaded_paths, 0
         else:
-            paths = utils.sample_n_trajectories(
-                self.env,
-                collect_policy,
-                batch_size // self.params['ep_len'],
-                max_path_length = self.params['ep_len'],
-            )
-            envsteps_this_batch = sum(path['observation'].shape[0] for path in paths)
-            
+            envsteps_this_batch = 0
+            paths = []
+            while envsteps_this_batch<=batch_size:
+                paths.extend(utils.sample_n_trajectories(
+                    self.env,
+                    collect_policy,
+                    max((batch_size-envsteps_this_batch) // self.params['ep_len'],1),
+                    max_path_length = self.params['ep_len'],
+                ))
+                envsteps_this_batch = sum(path['observation'].shape[0] for path in paths)
 
         # TODO collect `batch_size` samples to be used for training
         # HINT1: use sample_trajectories from utils
@@ -222,12 +225,12 @@ class RL_Trainer(object):
             # HINT: keep the agent's training log for debugging
             train_log = self.agent.train( ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
             all_logs.append(train_log)
-
+        return all_logs
     ####################################
     ####################################
 
     def perform_logging(self, itr, paths, eval_policy, train_video_paths, all_logs):
-
+        
         last_log = all_logs[-1]
 
         #######################

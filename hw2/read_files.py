@@ -27,6 +27,21 @@ def get_section_results(path):
 if __name__ == '__main__':
     import glob
     summary_dir = "../../data/q1_bc_ant_Ant-v4_15-04-2023_22-18-15"
+
+    """ data_lb = read_q1_data('lb')
+    for folder in os.listdir('data'):
+        split = folder.split('_')
+        if 'CartPole-v0' in split and batch in split:
+            config_list = split[split.index(batch):split.index('CartPole-v0')]
+            # print('_'.join(config))
+            config = '_'.join(config_list)
+
+            logdir = os.path.join('data', folder, 'events*')
+            eventfile = glob.glob(logdir)[0] """
+
+
+
+
     for filename in os.listdir(summary_dir):
         path = os.path.join(summary_dir, filename)
 
